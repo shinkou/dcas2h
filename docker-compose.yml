@@ -1,0 +1,311 @@
+version: '3.7'
+networks:
+  dcas2h-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.1.0/24
+
+services:
+  database:
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 15s
+      retries: 5
+    image: postgres:13
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.16
+    ports:
+      - 5432:5432
+    volumes:
+      - pv-pgdata:/var/lib/postgresql/data
+
+  redis:
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      retries: 5
+    image: redis:6
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.24
+    ports:
+      - 6379:6379
+    volumes:
+      - pv-redis:/data
+
+  init_metadb:
+    command: ["psql", "-c", "CREATE DATABASE hive_metastore"]
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      PGHOST: database
+      PGPASSWORD: postgres
+      PGUSER: postgres
+    image: postgres:13
+    networks:
+      - dcas2h-net
+    profiles:
+      - init
+
+  init_hadoop:
+    build:
+      context: ./hadoop
+    command:
+      - -c
+      - |
+        mkdir -p /run/hdfs/namenode
+        mkdir -p /run/hdfs/datanode
+        chown -R hadoop:hadoop /run/hdfs
+        hdfs --config $$HADOOP_CONF_DIR namenode -format
+        service ssh start
+        hdfs --daemon start --config $$HADOOP_CONF_DIR namenode
+        hdfs --daemon start --config $$HADOOP_CONF_DIR datanode
+        hdfs dfs -mkdir -p "/user/airflow/warehouse"
+        hdfs dfs -mkdir -p "/var/log/spark/apps"
+        hdfs dfs -chown -R airflow:hadoop "/"
+        hdfs dfs -chmod -R g+w "/"
+        hdfs --daemon stop --config $$HADOOP_CONF_DIR datanode
+        hdfs --daemon stop --config $$HADOOP_CONF_DIR namenode
+        service ssh stop
+    entrypoint: /bin/bash
+    image: dcas2h-hadoop
+    networks:
+      - dcas2h-net
+    profiles:
+      - init_hadoop
+    volumes:
+      - ./hadoop_build/hadoop_conf_dir:/etc/hadoop/conf
+      - pv-hdfs:/run/hdfs
+
+  hadoop:
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566/
+    healthcheck:
+      test: ["CMD", "hdfs", "dfs", "-ls", "/"]
+      interval: 30s
+      retries: 5
+    image: dcas2h-hadoop
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.32
+    ports:
+      - 8020:8020
+      - 14000:14000
+    volumes:
+      - pv-hdfs:/run/hdfs
+
+  localstack:
+    environment:
+      - DEBUG=${DEBUG-}
+      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR-}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    image: localstack/localstack
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.40
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    volumes:
+      - pv-localstack:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  hms:
+    build:
+      context: ./hive
+    command:
+      - -c
+      - |
+        schematool -dbType postgres -initSchema
+        hive --service hiveserver2 &
+        hive --service metastore
+    depends_on:
+      database:
+        condition: service_healthy
+      hadoop:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-vz", "localhost", "9083", "10000"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    image: dcas2h-hive
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.48
+    ports:
+      - 9083:9083
+
+  sts:
+    build:
+      context: ./spark
+    command:
+      - -c
+      - |
+        $$SPARK_HOME/sbin/start-thriftserver.sh
+    depends_on:
+      database:
+        condition: service_healthy
+      hadoop:
+        condition: service_healthy
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    healthcheck:
+      test: ["CMD", "nc", "-vz", "localhost", "10000"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    image: dcas2h-spark
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.56
+    ports:
+      - 10000:10000
+
+  init_hive:
+    build:
+      context: ./apps
+    command:
+      - -c
+      - |
+        for dbname in db1 db2; do
+            beeline -u 'jdbc:hive2://sts:10000' -e "CREATE DATABASE IF NOT EXISTS $$dbname"
+        done
+    depends_on:
+      hadoop:
+        condition: service_healthy
+      hms:
+        condition: service_healthy
+      sts:
+        condition: service_healthy
+    entrypoint: /bin/bash
+    image: dcas2h-apps
+    networks:
+      - dcas2h-net
+    profiles:
+      - init
+
+  init_localstack:
+    command:
+      - -c
+      - |
+        for e in dev uat prod; do
+            for org in company1 company2; do
+                aws s3 --endpoint-url=http://localstack:4566/ mb s3://$$org-$$e
+            done
+        done
+    depends_on:
+      hadoop:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+    entrypoint: /bin/bash
+    environment:
+      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+      AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+      AWS_ENDPOINT_URL: http://localstack:4566/
+    image: dcas2h-airflow
+    networks:
+      - dcas2h-net
+    profiles:
+      - init
+
+  init_airflow:
+    build:
+      context: ./airflow
+    command:
+      - -c
+      - |
+        airflow db init
+        airflow users create -r Admin -u airflow -p airflow -e airflow@localhost -f Air -l Flow
+        airflow variables import /home/airflow/vars.json
+    depends_on:
+      database:
+        condition: service_healthy
+      hadoop:
+        condition: service_healthy
+      hms:
+        condition: service_started
+      localstack:
+        condition: service_started
+    entrypoint: /bin/bash
+    environment: &env_vars
+      AIRFLOW_CONN_HDFS_DEFAULT: hdfs://hadoop:8020/
+      AIRFLOW_CONN_HIVE_CLI_DEFAULT: hive-cli://hms:10000/default?__extra__=%7B%22use_beeline%22%3A+true%2C+%22auth%22%3A+%22%22%7D
+      AIRFLOW_CONN_METASTORE_DEFAULT: hive-metastore://hms:9083/
+      AIRFLOW_CONN_WEBHDFS_DEFAULT: hdfs://hadoop:14000/
+      AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__FERNET_KEY: rykDKKjiBQd1JMv-FZMByWZey9A12kx0ezQeX9fL2zg=
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@database:5432/postgres
+      AIRFLOW__WEBSERVER__SECRET_KEY: 1hU8wo41BsgV0Hy9y3286frovGWwhic5
+      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+      AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+      AWS_ENDPOINT_URL: http://localstack:4566/
+      PYTHONPATH: /home/airflow/packages
+    image: dcas2h-airflow
+    networks:
+      - dcas2h-net
+    profiles:
+      - init
+    volumes:
+      - ./dags:/home/airflow/dags
+
+  scheduler:
+    command:
+      - airflow
+      - scheduler
+    depends_on:
+      &depend_conds
+      database:
+        condition: service_healthy
+      hadoop:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+    environment:
+      <<: *env_vars
+    image: dcas2h-airflow
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.64
+    ports:
+      - 8793:8793
+    restart: on-failure
+    volumes:
+      - ./dags:/home/airflow/dags
+
+  webserver:
+    command:
+      - airflow
+      - webserver
+    depends_on:
+      <<: *depend_conds
+    environment:
+      <<: *env_vars
+    image: dcas2h-airflow
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.80
+    ports:
+      - 8080:8080
+    volumes:
+      - ./dags:/home/airflow/dags
+
+volumes:
+  pv-hdfs:
+  pv-localstack:
+  pv-pgdata:
+  pv-redis:
