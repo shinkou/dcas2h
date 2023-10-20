@@ -24,4 +24,14 @@
 		<name>hive.metastore.uris</name>
 		<value>thrift://hms:9083</value>
 	</property>
+
+	<!-- enable locking feature in Hive -->
+	<property>
+		<name>hive.zookeeper.quorum</name>
+		<value>zk</value>
+	</property>
+	<property>
+		<name>hive.support.concurrency</name>
+		<value>true</value>
+	</property>
 </configuration>

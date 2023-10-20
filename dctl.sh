@@ -16,7 +16,7 @@ EOF
 
 function buildall()
 {
-	for service in init_hadoop hms sts init_hive init_airflow; do
+	for service in init_hadoop hms zk sts init_hive init_airflow; do
 		$DKRCMP build \
 			--build-arg HADOOP_CONF_DIR=/etc/hadoop/conf \
 			--build-arg SPARK_CONF_DIR=/etc/spark/conf \
@@ -27,7 +27,7 @@ function buildall()
 
 function delall()
 {
-	for component in hadoop hive spark apps airflow; do
+	for component in hadoop hive zookeeper spark apps airflow; do
 		docker rmi -f dcas2h-$component
 	done
 }

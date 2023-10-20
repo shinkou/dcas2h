@@ -171,6 +171,25 @@ services:
     ports:
       - 10000:10000
 
+  zk:
+    build:
+      context: ./zookeeper
+    command:
+      - -c
+      - |
+        $$ZOOKEEPER_HOME/bin/zkServer.sh start-foreground
+    healthcheck:
+      test: ["CMD", "nc", "-vz", "localhost", "2181"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    image: dcas2h-zookeeper
+    networks:
+      dcas2h-net:
+        ipv4_address: 172.20.1.60
+    ports:
+      - 2181:2181
+
   init_hive:
     build:
       context: ./apps
