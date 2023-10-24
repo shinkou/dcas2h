@@ -34,6 +34,29 @@ Please note that you can remove all Docker images built with this:
 $ ./dctl.sh delall
 ```
 
+## Service Access
+
+To access Airflow's web UI, simply point your web browser to
+[http://localhost:8080][1].
+
+Redis can be accessed by running the following command:
+
+```
+$ ./dctl.sh exec -- redis redis-cli
+```
+
+HiveServer2 is accessible via beeline like this:
+
+```
+$ ./dctl.sh exec scheduler beeline -u jdbc:hive2://hms:10000/
+```
+
+Similarly, for access to Spark-ThriftServer, simply do this:
+
+```
+$ ./dctl.sh exec scheduler beeline -u jdbc:hive2://sts:10000/
+```
+
 ## Issue of spark-sql Execution
 
 When sts is up and running, any spark-sql execution will wait (for
@@ -65,3 +88,6 @@ $ ./dctl.sh stop sts
 ```
 
 Once the sts closes, the spark SQL command issued will run promptly.
+
+---
+[1]: http://localhost:8080
