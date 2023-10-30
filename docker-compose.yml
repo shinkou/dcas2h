@@ -150,8 +150,7 @@ services:
       context: ./spark
     command:
       - -c
-      - |
-        $$SPARK_HOME/sbin/start-thriftserver.sh
+      - $$SPARK_HOME/sbin/start-thriftserver.sh
     depends_on:
       database:
         condition: service_healthy
@@ -176,8 +175,7 @@ services:
       context: ./zookeeper
     command:
       - -c
-      - |
-        $$ZOOKEEPER_HOME/bin/zkServer.sh start-foreground
+      - $$ZOOKEEPER_HOME/bin/zkServer.sh start-foreground
     healthcheck:
       test: ["CMD", "nc", "-vz", "localhost", "2181"]
       interval: 30s
