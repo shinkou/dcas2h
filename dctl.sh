@@ -46,10 +46,6 @@ function downall()
 
 function main()
 {
-	export AWS_ACCESS_KEY_ID=blah
-	export AWS_SECRET_ACCESS_KEY=meh
-	export AWS_DEFAULT_REGION=us-east-1
-
 	for arg in "$@"; do
 		case $arg in
 			buildall|delall|upall|downall|help)

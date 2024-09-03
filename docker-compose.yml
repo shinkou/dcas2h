@@ -88,7 +88,7 @@ services:
 
   hadoop:
     environment:
-      AWS_ENDPOINT_URL: http://localstack:4566/
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566/}
     healthcheck:
       test: ["CMD", "hdfs", "dfs", "-ls", "/"]
       interval: 30s
@@ -227,10 +227,10 @@ services:
         condition: service_started
     entrypoint: /bin/bash
     environment:
-      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-      AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
-      AWS_ENDPOINT_URL: http://localstack:4566/
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-blah}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-meh}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566/}
     image: dcas2h-airflow
     networks:
       - dcas2h-net
@@ -267,10 +267,10 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@database:5432/postgres
       AIRFLOW__WEBSERVER__SECRET_KEY: 1hU8wo41BsgV0Hy9y3286frovGWwhic5
-      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-      AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
-      AWS_ENDPOINT_URL: http://localstack:4566/
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-blah}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-meh}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566/}
       PYTHONPATH: /home/airflow/packages
     image: dcas2h-airflow
     networks:
