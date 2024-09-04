@@ -61,12 +61,10 @@ function main()
 
 docker compose version > /dev/null 2>&1
 if [ 0 -eq $? ]; then
-	echo 'docker compose v2 found.'
 	DKRCMP="docker compose"
 else
 	docker-compose version > /dev/null 2>&1
 	if [ 0 -eq $? ]; then
-		echo 'docker compose v1 found.'
 		DKRCMP=docker-compose
 	else
 		echo 'No docker compose found. Please install it to continue.'

@@ -265,7 +265,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__FERNET_KEY: rykDKKjiBQd1JMv-FZMByWZey9A12kx0ezQeX9fL2zg=
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@database:5432/postgres
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@database:5432/postgres
       AIRFLOW__WEBSERVER__SECRET_KEY: 1hU8wo41BsgV0Hy9y3286frovGWwhic5
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-blah}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-meh}
@@ -294,6 +294,11 @@ services:
         condition: service_started
     environment:
       <<: *env_vars
+    healthcheck:
+      test: ["CMD", "nc", "-vz", "localhost", "8793"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
     image: dcas2h-airflow
     networks:
       dcas2h-net:
@@ -312,12 +317,18 @@ services:
       <<: *depend_conds
     environment:
       <<: *env_vars
+    healthcheck:
+      test: ["CMD", "nc", "-vz", "localhost", "8080"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
     image: dcas2h-airflow
     networks:
       dcas2h-net:
         ipv4_address: 172.20.1.80
     ports:
       - 8080:8080
+    restart: on-failure
     volumes:
       - ./dags:/home/airflow/dags
 
