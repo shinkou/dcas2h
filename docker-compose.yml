@@ -266,6 +266,7 @@ services:
       AIRFLOW__CORE__FERNET_KEY: rykDKKjiBQd1JMv-FZMByWZey9A12kx0ezQeX9fL2zg=
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@database:5432/postgres
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /var/log/airflow
       AIRFLOW__WEBSERVER__SECRET_KEY: 1hU8wo41BsgV0Hy9y3286frovGWwhic5
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-blah}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-meh}
@@ -279,6 +280,22 @@ services:
       - init
     volumes:
       - ./dags:/home/airflow/dags
+
+  init_airflow_logdirs:
+    command:
+      - -c
+      - |
+        chmod 0777 /tmp/scheduler /tmp/webserver
+        ls -dhl /tmp/scheduler/ /tmp/webserver/
+    entrypoint: /bin/bash
+    image: dcas2h-apps
+    networks:
+      - dcas2h-net
+    profiles:
+      - init
+    volumes:
+      - pv-scheduler:/tmp/scheduler
+      - pv-webserver:/tmp/webserver
 
   scheduler:
     command:
@@ -307,6 +324,7 @@ services:
       - 8793:8793
     restart: on-failure
     volumes:
+      - pv-scheduler:/var/log/airflow
       - ./dags:/home/airflow/dags
 
   webserver:
@@ -330,6 +348,7 @@ services:
       - 8080:8080
     restart: on-failure
     volumes:
+      - pv-webserver:/var/log/airflow
       - ./dags:/home/airflow/dags
 
 volumes:
@@ -337,3 +356,5 @@ volumes:
   pv-localstack:
   pv-pgdata:
   pv-redis:
+  pv-scheduler:
+  pv-webserver:

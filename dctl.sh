@@ -42,7 +42,7 @@ function delimgs()
 
 function delpvs()
 {
-	for suffix in hdfs localstack pgdata redis; do
+	for suffix in hdfs localstack pgdata redis scheduler webserver; do
 		docker volume rm dcas2h_pv-$suffix
 	done
 }
