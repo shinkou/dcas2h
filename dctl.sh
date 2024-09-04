@@ -7,7 +7,9 @@ Usage: $cmd [ OP [ OP [ OP ... ] ] ]
 
 where OP can be:
   buildall      build all Docker images
-  delall        delete previously built images
+  delall        delete previously created images and persistent volumes
+  delimgs       delete previously created images
+  delpvs        delete previously created persistent volumes
   upall         bring up all services
   downall       bring down all services
   help          print this usage and exit
@@ -27,9 +29,27 @@ function buildall()
 
 function delall()
 {
+	delpvs
+	delimgs
+}
+
+function delimgs()
+{
 	for component in hadoop hive zookeeper spark apps airflow; do
 		docker rmi -f dcas2h-$component
 	done
+}
+
+function delpvs()
+{
+	for suffix in hdfs localstack pgdata redis; do
+		docker volume rm dcas2h_pv-$suffix
+	done
+}
+
+function downall()
+{
+	$DKRCMP --profile init down
 }
 
 function upall()
@@ -39,16 +59,11 @@ function upall()
 	&& $DKRCMP --profile init up -d
 }
 
-function downall()
-{
-	$DKRCMP --profile init down
-}
-
 function main()
 {
 	for arg in "$@"; do
 		case $arg in
-			buildall|delall|upall|downall|help)
+			buildall|delall|delimgs|delpvs|upall|downall|help)
 				${arg}
 				;;
 			*)

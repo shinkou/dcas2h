@@ -28,7 +28,20 @@ To stop all containers, run this:
 $ ./dctl.sh downall
 ```
 
-Please note that you can remove all Docker images built with this:
+To restart the necessary containers with previously saved data, do:
+
+```
+$ ./dctl.sh up
+```
+
+To restart with clean databases without rebuilding any image, do:
+
+```
+$ ./dctl.sh delpvs upall
+```
+
+Please note that you can remove all Docker images and persistent volumes
+created anytime with this:
 
 ```
 $ ./dctl.sh delall
@@ -76,7 +89,7 @@ It will take a while to finish.
 When containers are up and you are returned to the command prompt, run:
 
 ```
-$ ./dctl.sh exec -- scheduler spark-sql -e 'show databases'
+$ ./dctl.sh exec scheduler spark-sql -e 'show databases'
 ```
 
 The command will NEVER start actually running, until you do the next step.
