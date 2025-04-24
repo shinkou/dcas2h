@@ -2,7 +2,7 @@ FROM debian
 
 ENV JAVA_HOME=/usr/local/lib/adoptium-openjdk-8-jre-x64
 ENV JAVA_DL_URL="https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jre_x64_linux_hotspot_8u362b09.tar.gz"
-ENV ZOOKEEPER_VERSION=${ZOOKEEPER_VERSION:-3.9.2}
+ENV ZOOKEEPER_VERSION=${ZOOKEEPER_VERSION:-3.9.3}
 ENV ZOOKEEPER_HOME=${ZOOKEEPER_HOME:-/usr/lib/zookeeper-${ZOOKEEPER_VERSION}}
 #ENV ZOOKEEPER_BASE_URL="https://archive.apache.org/dist"
 ENV ZOOKEEPER_BASE_URL="https://dlcdn.apache.org"

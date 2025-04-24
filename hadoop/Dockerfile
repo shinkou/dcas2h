@@ -8,7 +8,7 @@ ARG HADOOP_VERSION
 # More info about this Java 8 JRE at https://adoptium.net/
 ENV JAVA_HOME=/usr/local/lib/adoptium-openjdk-8-jre-x64
 ENV JAVA_DL_URL="https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jre_x64_linux_hotspot_8u362b09.tar.gz"
-ENV HADOOP_VERSION=${HADOOP_VERSION:-3.3.6}
+ENV HADOOP_VERSION=${HADOOP_VERSION:-3.4.1}
 ENV HADOOP_HOME=${HADOOP_HOME:-/usr/lib/hadoop-${HADOOP_VERSION}}
 ENV HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-${HADOOP_HOME}/etc/hadoop}
 #ENV HADOOP_BASE_URL="https://archive.apache.org/dist"
